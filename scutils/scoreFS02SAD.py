@@ -137,21 +137,40 @@ def score_file_SAD(gt_fp, hyp_fp, sadcollar):
 
     collarDict = {'0.0':3, '0.25':7, '0.5':11, '1.0':15, '2.0':19}
     dcf_desired = termOut[int(collarDict[sadcollar])].split()[2].strip()
+    collarDict_fp = {'0.0': 2, '0.25': 6, '0.5': 10, '1.0': 14, '2.0': 18}
+    pfp_desired = termOut[int(collarDict_fp[sadcollar])].split()[2].strip()
+    collarDict_fn = {'0.0': 1, '0.25': 5, '0.5': 9, '1.0': 13, '2.0': 17}
+    pfn_desire = termOut[int(collarDict_fn[sadcollar])].split()[2].strip()
     if not util.is_number(dcf_desired):
-        dcf_desired = 'NaN'
-    return dcf_desired
-
+        pfp_desired = 'NaN'
+    if not util.is_number(pfp_desired):
+        pfn_desire = 'NaN'
+    if not util.is_number(pfn_desire):
+        pfn_desire = 'NaN'
+    return dcf_desired, pfp_desired, pfn_desire
 
 
 def score_folder_SAD(fileList, fileDict, sadcollar, write_msg):
     dcfDict = {}
+    pfpDict = {}
+    pfnDict = {}
     non_scored = []
     for fname in fileList:
-        dcf = score_file_SAD(fileDict['ref'][fname], fileDict['hyp'][fname], sadcollar)
+        dcf, pfp, pfn = score_file_SAD(fileDict['ref'][fname], fileDict['hyp'][fname], sadcollar)
         if dcf == 'NaN':
             non_scored.append(fname)
         else:
             dcfDict[fname] = dcf
+
+        if pfp == 'NaN':
+            non_scored.append(fname)
+        else:
+            pfpDict[fname] = pfp
+
+        if pfn == 'NaN':
+            non_scored.append(fname)
+        else:
+            pfnDict[fname] = pfn
     
     if len(non_scored) > 0:
         wline = '\nThe following files cound not be scored:\n\t'
@@ -160,32 +179,47 @@ def score_folder_SAD(fileList, fileDict, sadcollar, write_msg):
     
     wline = 'Files Succesfully Evaluated: '+str(len(dcfDict))+'\n'
     write_msg.append(wline)
-    return dcfDict, write_msg
+    return dcfDict, pfpDict, pfnDict, write_msg
 
 
-
-def get_SAD_results(dcfDict, write_msg):
+def get_SAD_results(dcfDict, pfpDict, pfnDict, write_msg):
     
     overall_dcf = 0.0
+    overall_pfp = 0.0
+    overall_pfn = 0.0
     numFiles = len(dcfDict)
     
-    write_msg.append('\n\n\t---Individual DCF Scores---\n')
-    write_msg.append('   File Name\t:\t  DCF')
+    write_msg.append('\n\n\t---Individual Scores---\n')
+    write_msg.append('   File Name\t:\t  DCF  \t  PFP  \t  PFN')
     for fname in dcfDict:    
         curr_dcf = dcfDict[fname]
-        write_msg.append(fname+'\t:\t'+curr_dcf)
+        curr_pfp = pfpDict[fname]
+        curr_pfn = pfnDict[fname]
+        write_msg.append(fname+'\t:\t'+curr_dcf+'\t'+curr_pfp+'\t'+curr_pfn)
         overall_dcf += float(curr_dcf)
-    overall_dcf = str(round(overall_dcf/numFiles,5))
+        overall_pfp += float(curr_pfp)
+        overall_pfn += float(curr_pfn)
+    overall_dcf = str(round(overall_dcf/numFiles, 5))
+    overall_pfp = str(round(overall_pfp/numFiles, 5))
+    overall_pfn = str(round(overall_pfn/numFiles, 5))
     dcf_pc = ' ('+str(float(overall_dcf)*100)+' %)'
+    pfp_pc = ' (' + str(float(overall_pfp) * 100) + ' %)'
+    pfn_pc = ' (' + str(float(overall_pfn) * 100) + ' %)'
     
     wline = '\n\n'; print(wline); write_msg.append(wline)
     wline = '\t'+'*'*60; print(wline); write_msg.append(wline)
-    wline = '\tOVERALL DCF Result for FS02 SAD Task: '+overall_dcf+dcf_pc
+    wline = '\tOVERALL DCF Result for FS02 SAD Task: ' + overall_dcf + dcf_pc
+    print(wline);
+    write_msg.append(wline)
+    wline = '\tOVERALL PFP Result for FS02 SAD Task: ' + overall_pfp + pfp_pc
+    print(wline);
+    write_msg.append(wline)
+    wline = '\tOVERALL PFN Result for FS02 SAD Task: ' + overall_pfn + pfn_pc
     print(wline); write_msg.append(wline)
     wline = '\t'+'*'*60; print(wline); write_msg.append(wline)
     wline = '\n\n'; print(wline)
     
-    return overall_dcf, write_msg
+    return overall_dcf, overall_pfp, overall_pfn, write_msg
 
 
 
@@ -202,11 +236,11 @@ if __name__ == '__main__':
     del ref_path, hyp_path
     
     # Score Files
-    dcfDict, write_msg = score_folder_SAD(fileList, fileDict, sadcollar, write_msg)
+    dcfDict, pfpDict, pfnDict, write_msg = score_folder_SAD(fileList, fileDict, sadcollar, write_msg)
     del sadcollar, fileList, fileDict
     
     # Get SAD DCF results
-    overall_dcf, write_msg = get_SAD_results(dcfDict, write_msg)
+    overall_dcf, overall_pfp, overall_pfn, write_msg = get_SAD_results(dcfDict, pfpDict, pfnDict, write_msg)
     
     # Write Results and Log
     util.writeList(write_msg, out_path, isOverWrite=True)
